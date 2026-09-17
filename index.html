@@ -573,6 +573,24 @@ tr.data-row:nth-child(even) { background: rgba(90,110,95,0.04); }
 .no { color: var(--rust); font-weight: 600; }
 .status-icon { margin-right: 5px; font-weight: bold; }
 
+/* New ULB identification badge used across the Images Data Availability tab */
+.new-ulb-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 7px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: var(--brass);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
 /* Loading / Error / Success */
 .loading {
   display: flex;
@@ -1416,6 +1434,26 @@ function refreshAnalysisDistrictOptions() {
   refreshAnalysisULBOptions();
 }
 
+function normalizeULBName(name) {
+  return (name || '')
+    .toString()
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
+
+function isNewULB(ulbName) {
+  const target = normalizeULBName(ulbName);
+  if (!target || !newULBsData.length) return false;
+  return newULBsData.some(row => normalizeULBName(row[CONFIG.GIS_NAME]) === target);
+}
+
+function newULBBadge(ulbName) {
+  return isNewULB(ulbName)
+    ? '<span class="new-ulb-badge"><i class="fas fa-star"></i> New</span>'
+    : '';
+}
+
 function refreshAnalysisULBOptions() {
   const selectedRegion = document.getElementById("analysisRegion").value;
   const selectedDistrict = document.getElementById("analysisDistrict").value;
@@ -1429,7 +1467,12 @@ function refreshAnalysisULBOptions() {
   const ulbSet = new Set(relevant.map(row => row[CONFIG.GIS_NAME]).filter(Boolean));
   const ulbSelect = document.getElementById("analysisULB");
   ulbSelect.innerHTML = "<option value=''>All ULBs</option>";
-  [...ulbSet].sort().forEach(r => ulbSelect.innerHTML += `<option value="${r}">${r}</option>`);
+  [...ulbSet].sort().forEach(r => {
+    const option = document.createElement('option');
+    option.value = r;
+    option.textContent = isNewULB(r) ? `${r} — New` : r;
+    ulbSelect.appendChild(option);
+  });
   ulbSelect.selectedIndex = 0;
 }
 
@@ -1467,7 +1510,9 @@ function renderAnalysisTable() {
     html += "<tr class='data-row'>";
     CONFIG.analysisFields.forEach(h => {
       const value = row[h] || "-";
-      if (h !== CONFIG.GIS_NAME && 
+      if (h === CONFIG.GIS_NAME) {
+        html += `<td>${value} ${newULBBadge(value)}</td>`;
+      } else if (typeof value === 'string' &&
           (value.toLowerCase().includes('available') || value.toLowerCase().includes('yes') || value.toLowerCase().includes('no'))) {
         html += `<td>${statusIcon(value)}</td>`;
       } else {
